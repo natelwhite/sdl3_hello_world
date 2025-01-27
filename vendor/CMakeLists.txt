@@ -1,4 +1,4 @@
-set(SDL_TEST_LIBRARY OFF)
+option(SDL_TEST_LIBRARY OFF)
 option(BUILD_SHARED_LIBS OFF)
 add_subdirectory(SDL)
 
