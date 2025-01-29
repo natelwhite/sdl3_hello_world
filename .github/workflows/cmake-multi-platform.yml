@@ -57,7 +57,7 @@ jobs:
     - name: Retrieve git submodules
       shell: bash
       run: |
-        git submodule upate --init
+        git submodule update --init
 
     - name: Retrieve SDL_shadercross/external (Linux)
       shell: bash
