@@ -1,3 +1,5 @@
 build
 .cache
 sdl3_hello_world
+vendor/*
+!vendor/CMakeLists.txt
