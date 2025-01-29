@@ -1,4 +1,6 @@
 #include <SDL3/SDL.h>
+#include <SDL3_shadercross/SDL_shadercross.h>
+#include <iostream>
 
 class Renderer {
   public:
@@ -32,12 +34,13 @@ class Renderer {
     }
 
     SDL_GPUShader* loadShader(const char* filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storage_buffers, Uint32 num_storage_textures) {
+
       // determine if vertex or fragment shader
-      SDL_GPUShaderStage stage;
+      SDL_ShaderCross_ShaderStage shader_stage;
       if (SDL_strstr(filename, ".vert")) {
-        stage = SDL_GPU_SHADERSTAGE_VERTEX;
+        shader_stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX;
       } else if (SDL_strstr(filename, ".frag")) {
-        stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+        shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
       } else {
         SDL_Log("Invalid shader stage");
         return nullptr;
@@ -45,7 +48,7 @@ class Renderer {
 
       // get the full path to the shader given it's name
       char full_path[256];
-      SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.spv", m_base_path, m_shaders_location, filename);
+      SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.hlsl", m_base_path, m_shaders_location, filename);
 
       // force vulkan format for now
       SDL_GPUShaderFormat device_formats = SDL_GetGPUShaderFormats(m_device);
@@ -64,19 +67,26 @@ class Renderer {
         return nullptr;
       }
 
-      SDL_GPUShaderCreateInfo shader_info = {
-        .code_size = code_size,
-        .code = static_cast<Uint8*>(code),
+      // create info & metadata for parsing hlsl to compile during runtime
+      SDL_ShaderCross_HLSL_Info hlsl_info {
+        .source = static_cast<const char*>(code),
         .entrypoint = entrypoint,
-        .format = mutual_format,
-        .stage = stage,
+        .include_dir = NULL,
+        .defines = NULL,
+        .shader_stage = shader_stage,
+        .enable_debug = true,
+        .name = NULL,
+        .props = 0
+      };
+      SDL_ShaderCross_GraphicsShaderMetadata metadata {
         .num_samplers = num_samplers,
         .num_storage_textures = num_storage_textures,
         .num_storage_buffers = num_storage_buffers,
-        .num_uniform_buffers = num_uniform_buffers,
+        .num_uniform_buffers = num_uniform_buffers
       };
 
-      SDL_GPUShader *result = SDL_CreateGPUShader(m_device, &shader_info);
+      // compile hlsl to spv
+      SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(m_device, &hlsl_info, &metadata);
       SDL_free(code);
       if (result == nullptr) {
         SDL_Log("Failed to create shader: %s", SDL_GetError());
@@ -159,7 +169,7 @@ class Renderer {
     Uint32 m_width, m_height; // window width & height
     const SDL_WindowFlags m_windowFlags = SDL_WINDOW_VULKAN;
     const SDL_GPUShaderFormat m_accepted_shader_formats[1] { SDL_GPU_SHADERFORMAT_SPIRV };
-    const char *m_shaders_location {"shaders/compiled/"};
+    const char *m_shaders_location {"shaders/source/"};
 
     SDL_GPUDevice *m_device { nullptr };
     SDL_Window *m_window { nullptr };
@@ -168,9 +178,18 @@ class Renderer {
 
 int main() {
   Renderer renderer {640, 480};
-  renderer.init();
+  if (!renderer.init()) {
+    return -1;
+  }
+
   SDL_GPUShader *vert_shader = renderer.loadShader("RawTriangle.vert", 0, 0, 0, 0);
+  if (vert_shader == nullptr) {
+    return -1;
+  }
   SDL_GPUShader *frag_shader = renderer.loadShader("SolidColor.frag", 0, 0, 0, 0);
+  if (vert_shader == nullptr) {
+    return -1;
+  }
 
   SDL_GPUGraphicsPipeline *pipeline = renderer.createGraphicsPipeline(vert_shader, frag_shader);
   if (pipeline == nullptr) {
