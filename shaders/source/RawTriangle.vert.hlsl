@@ -12,7 +12,7 @@ Output main(Input input) {
 	float2 pos;
 	switch(input.VertexIndex) {
 		case 0:
-		pos = float2(0.0f, -1.0f);
+		pos = float2(-1.0f, -1.0f);
 		output.Color = float4(1.0f, 0.0f, 0.0f, 1.0f);
 		break;
 	case 1:

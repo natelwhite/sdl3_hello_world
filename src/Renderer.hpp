@@ -8,12 +8,19 @@ class Renderer {
 		bool init();
 		SDL_GPUShader* loadShader(const char* filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storage_buffers, Uint32 num_storage_textures);
 		SDL_GPUGraphicsPipeline *createGraphicsPipeline(SDL_GPUShader *vert_shader, SDL_GPUShader *frag_shader);
+		void releaseShader(SDL_GPUShader *shader);
+		void releaseGraphicsPipeline(SDL_GPUGraphicsPipeline *pipelin);
 		void draw(SDL_GPUGraphicsPipeline *pipeline);
 		void quit();
 	private:
 		Uint32 m_width, m_height; // window width & height
-		const SDL_WindowFlags m_windowFlags = SDL_WINDOW_VULKAN;
-		const SDL_GPUShaderFormat m_accepted_shader_formats[1] { SDL_GPU_SHADERFORMAT_SPIRV };
+		const SDL_WindowFlags m_windowFlags = SDL_WINDOW_FULLSCREEN;
+		const SDL_GPUShaderFormat m_accepted_shader_formats[4] {
+			SDL_GPU_SHADERFORMAT_SPIRV,
+			SDL_GPU_SHADERFORMAT_DXBC,
+			SDL_GPU_SHADERFORMAT_DXIL,
+			SDL_GPU_SHADERFORMAT_MSL
+		};
 		const char *m_shaders_location {"shaders/source/"};
 		SDL_GPUDevice *m_device { nullptr };
 		SDL_Window *m_window { nullptr };

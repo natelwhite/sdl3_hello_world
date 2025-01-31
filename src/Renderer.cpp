@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "SDL3/SDL_gpu.h"
 bool Renderer::init() { 
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
 		SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
@@ -43,11 +44,17 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, U
 	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.hlsl", m_base_path, m_shaders_location, filename);
 	// force vulkan format for now
 	SDL_GPUShaderFormat device_formats = SDL_GetGPUShaderFormats(m_device);
-	SDL_GPUShaderFormat mutual_format = SDL_GPU_SHADERFORMAT_SPIRV;
-	if (!(device_formats & SDL_GPU_SHADERFORMAT_SPIRV)) {
+	SDL_GPUShaderFormat mutual_format = SDL_GPU_SHADERFORMAT_INVALID;
+	for (const SDL_GPUShaderFormat &format : m_accepted_shader_formats) {
+		if (device_formats & format) {
+			mutual_format = format;
+			break;
+		} 
+	}
+	if (mutual_format == SDL_GPU_SHADERFORMAT_INVALID) {
 		SDL_Log("Unrecognized GPUDevice shader format");
 		return nullptr;
-	} 
+	}
 
 	// get shader code
 	const char *entrypoint = "main";
@@ -111,8 +118,6 @@ SDL_GPUGraphicsPipeline* Renderer::createGraphicsPipeline(SDL_GPUShader *vert_sh
 		.target_info = target_info,
 	};
 	SDL_GPUGraphicsPipeline *result = SDL_CreateGPUGraphicsPipeline(m_device, &pipeline_info);
-	SDL_ReleaseGPUShader(m_device, vert_shader);
-	SDL_ReleaseGPUShader(m_device, frag_shader);
 	if (result == nullptr) {
 		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 		return nullptr;
@@ -142,6 +147,13 @@ void Renderer::draw(SDL_GPUGraphicsPipeline *pipeline) {
 	SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
 	SDL_EndGPURenderPass(render_pass);
 	SDL_SubmitGPUCommandBuffer(cmdbuf);
+}
+
+void Renderer::releaseShader(SDL_GPUShader *shader) {
+	SDL_ReleaseGPUShader(m_device, shader);
+}
+void Renderer::releaseGraphicsPipeline(SDL_GPUGraphicsPipeline *pipeline) {
+	SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
 }
 
 void Renderer::quit() {
