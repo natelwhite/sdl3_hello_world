@@ -56,14 +56,15 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-    - name: Install SDL3 dependencies
+    - name: Install SDL3 dependencies (Linux)
       shell: bash
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get install libasound2-dev libpulse-dev \
         libaudio-dev libjack-dev libsndio-dev libx11-dev libxext-dev \
         libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
-        libxkbcommon-dev libdrm-dev libgles2-mesa-dev \
-        libdbus-1-dev libibus-1.0-dev libudev-dev fcitx-libs-dev
+        libxkbcommon-dev libdrm-dev \
+        libdbus-1-dev libibus-1.0-dev fcitx-libs-dev
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
