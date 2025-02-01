@@ -60,6 +60,7 @@ jobs:
       shell: bash
       if: runner.os == 'Linux'
       run: |
+        sudo apt-get update;
         sudo apt-get install libasound2-dev libpulse-dev \
         libaudio-dev libjack-dev libsndio-dev libx11-dev libxext-dev \
         libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
