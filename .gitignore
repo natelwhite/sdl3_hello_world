@@ -1,3 +1,4 @@
 build
 .cache
-sdl3_hello_world
+bin/*
+!bin/shaders
