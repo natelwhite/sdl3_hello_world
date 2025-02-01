@@ -1,5 +1,4 @@
-#include "Renderer.cpp"
-#include <SDL3/SDL.h>
+#include "Renderer.hpp"
 
 int main() {
 	Renderer renderer {640, 480};

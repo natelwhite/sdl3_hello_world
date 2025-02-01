@@ -1,5 +1,5 @@
 #include "Renderer.hpp"
-#include "SDL3/SDL_gpu.h"
+
 bool Renderer::init() { 
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
 		SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
