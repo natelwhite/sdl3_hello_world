@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(${CMAKE_PROJECT_NAME})
 
-add_subdirectory(vendor)
+add_subdirectory(vendored)
 add_subdirectory(src)
 add_subdirectory(include)
 

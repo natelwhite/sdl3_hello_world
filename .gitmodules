@@ -1,6 +1,6 @@
-[submodule "vendor/SDL"]
-	path = vendor/SDL
+[submodule "vendored/SDL"]
+	path = vendored/SDL
 	url = https://github.com/libsdl-org/SDL.git
-[submodule "vendor/SDL_shadercross"]
-	path = vendor/SDL_shadercross
+[submodule "vendored/SDL_shadercross"]
+	path = vendored/SDL_shadercross
 	url = https://github.com/libsdl-org/SDL_shadercross.git
