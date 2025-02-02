@@ -136,9 +136,10 @@ void Renderer::draw(SDL_GPUGraphicsPipeline *pipeline) {
 		SDL_Log("WaitAndAcquireGPUSwapchainTexture failed: %s", SDL_GetError());
 		return;
 	}
+	const SDL_FColor clear_color {0.0f, 0.0f, 0.0f, 1.0f};
 	SDL_GPUColorTargetInfo target_info {
 		.texture = swapchain_texture,
-		.clear_color = (SDL_FColor){0.0f, 0.0f, 0.0f, 1.0f},
+		.clear_color = clear_color,
 		.load_op = SDL_GPU_LOADOP_CLEAR,
 		.store_op = SDL_GPU_STOREOP_STORE
 	};
