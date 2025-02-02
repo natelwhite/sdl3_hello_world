@@ -69,6 +69,11 @@ jobs:
         libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev fcitx-libs-dev \
         libpipewire-0.3-dev libwayland-dev libdecor-0-dev liburing-dev
 
+    - name: Setup Visual Studio Shell (Windows)
+      uses: egor-tensin/vs-shell@v2
+      with:
+        arch: x64
+
     - name: Setup Ninja (Windows)
       if: runner.os == 'Windows'
       uses: ashutoshvarma/setup-ninja@master
