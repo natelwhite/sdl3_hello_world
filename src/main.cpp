@@ -5,11 +5,17 @@ int main() {
 	if (!renderer.init()) {
 		return -1;
 	}
-	SDL_GPUShader *vert_shader = renderer.loadShader("RawTriangle.vert", 0, 0, 0, 0);
+	SDL_ShaderCross_GraphicsShaderMetadata metadata {
+		.num_samplers = 0,
+		.num_storage_textures = 0,
+		.num_storage_buffers = 0,
+		.num_uniform_buffers = 0
+	};
+	SDL_GPUShader *vert_shader = renderer.loadShader("RawTriangle.vert", &metadata);
 	if (vert_shader == nullptr) {
 		return -1;
 	}
-	SDL_GPUShader *frag_shader = renderer.loadShader("SolidColor.frag", 0, 0, 0, 0);
+	SDL_GPUShader *frag_shader = renderer.loadShader("SolidColor.frag", &metadata);
 	if (frag_shader == nullptr) {
 		return -1;
 	}
@@ -38,8 +44,8 @@ int main() {
 					quit = true;
 					break;
 				case SDLK_R:
-					vert_shader = renderer.loadShader("RawTriangle.vert", 0, 0, 0, 0);
-					frag_shader = renderer.loadShader("SolidColor.frag", 0, 0, 0, 0);
+					vert_shader = renderer.loadShader("RawTriangle.vert", &metadata);
+					frag_shader = renderer.loadShader("SolidColor.frag", &metadata);
 					if (vert_shader == nullptr) {
 						SDL_Log("Could not reload vertex shader: %s", SDL_GetError());
 						continue;

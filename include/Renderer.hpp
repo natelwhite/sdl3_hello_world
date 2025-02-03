@@ -6,7 +6,7 @@ class Renderer {
 	public:
 		Renderer(const int &t_width, const int &t_height) : m_width(t_width), m_height(t_height) { }
 		bool init();
-		SDL_GPUShader* loadShader(const char* filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storage_buffers, Uint32 num_storage_textures);
+		SDL_GPUShader* loadShader(const char* filename, SDL_ShaderCross_GraphicsShaderMetadata *metadata);
 		SDL_GPUGraphicsPipeline *createGraphicsPipeline(SDL_GPUShader *vert_shader, SDL_GPUShader *frag_shader);
 		void releaseShader(SDL_GPUShader *shader);
 		void releaseGraphicsPipeline(SDL_GPUGraphicsPipeline *pipelin);

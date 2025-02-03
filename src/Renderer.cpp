@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "SDL3_shadercross/SDL_shadercross.h"
 
 bool Renderer::init() { 
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -26,7 +27,7 @@ bool Renderer::init() {
 	return true;
 }
 
-SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storage_buffers, Uint32 num_storage_textures){
+SDL_GPUShader* Renderer::loadShader(const char* filename, SDL_ShaderCross_GraphicsShaderMetadata *metadata){
 	// determine if vertex or fragment shader
 	SDL_ShaderCross_ShaderStage shader_stage;
 	if (SDL_strstr(filename, ".vert")) {
@@ -74,15 +75,9 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, U
 		.name = NULL,
 		.props = 0
 	};
-	SDL_ShaderCross_GraphicsShaderMetadata metadata {
-		.num_samplers = num_samplers,
-		.num_storage_textures = num_storage_textures,
-		.num_storage_buffers = num_storage_buffers,
-		.num_uniform_buffers = num_uniform_buffers
-	};
 
 	// compile hlsl to spv
-	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(m_gpu, &hlsl_info, &metadata);
+	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(m_gpu, &hlsl_info, metadata);
 	SDL_free(code);
 	if (result == nullptr) {
 		SDL_Log("Failed to compile shader: %s", SDL_GetError());
