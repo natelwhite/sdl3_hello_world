@@ -6,8 +6,8 @@ bool Renderer::init() {
 		return false;
 	}
 
-	m_device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
-	if (m_device == nullptr) {
+	m_gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+	if (m_gpu == nullptr) {
 		SDL_Log("CreateGPUDevice failed: %s", SDL_GetError());
 		return false;
 	}
@@ -18,12 +18,11 @@ bool Renderer::init() {
 		return false;
 	}
 
-	if (!SDL_ClaimWindowForGPUDevice(m_device, m_window)) {
+	if (!SDL_ClaimWindowForGPUDevice(m_gpu, m_window)) {
 		SDL_Log("ClaimWindowForGPUDevice failed: %s", SDL_GetError());
 		return false;
 	}
 
-	m_base_path = SDL_GetBasePath();
 	return true;
 }
 
@@ -41,9 +40,9 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, U
 
 	// get the full path to the shader given it's name
 	char full_path[256];
-	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.hlsl", m_base_path, m_shaders_location, filename);
+	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.hlsl", m_root, m_hlsl, filename);
 	// force vulkan format for now
-	SDL_GPUShaderFormat device_formats = SDL_GetGPUShaderFormats(m_device);
+	SDL_GPUShaderFormat device_formats = SDL_GetGPUShaderFormats(m_gpu);
 	SDL_GPUShaderFormat mutual_format = SDL_GPU_SHADERFORMAT_INVALID;
 	for (const SDL_GPUShaderFormat &format : m_accepted_shader_formats) {
 		if (device_formats & format) {
@@ -57,7 +56,6 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, U
 	}
 
 	// get shader code
-	const char *entrypoint = "main";
 	size_t code_size;
 	void *code = SDL_LoadFile(full_path, &code_size);
 	if (code == NULL) {
@@ -68,7 +66,7 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, U
 	// create info & metadata for parsing hlsl to compile during runtime
 	SDL_ShaderCross_HLSL_Info hlsl_info {
 		.source = static_cast<const char*>(code),
-		.entrypoint = entrypoint,
+		.entrypoint = "main",
 		.include_dir = NULL,
 		.defines = NULL,
 		.shader_stage = shader_stage,
@@ -84,10 +82,10 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, Uint32 num_samplers, U
 	};
 
 	// compile hlsl to spv
-	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(m_device, &hlsl_info, &metadata);
+	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(m_gpu, &hlsl_info, &metadata);
 	SDL_free(code);
 	if (result == nullptr) {
-		SDL_Log("Failed to create shader: %s", SDL_GetError());
+		SDL_Log("Failed to compile shader: %s", SDL_GetError());
 		return nullptr;
 	}
 	return result;
@@ -103,7 +101,7 @@ SDL_GPUGraphicsPipeline* Renderer::createGraphicsPipeline(SDL_GPUShader *vert_sh
 		.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
 	};
 	const SDL_GPUColorTargetDescription target_description {
-		.format = SDL_GetGPUSwapchainTextureFormat(m_device, m_window),
+		.format = SDL_GetGPUSwapchainTextureFormat(m_gpu, m_window),
 		.blend_state = target_blend_state
 	};
 	const SDL_GPUGraphicsPipelineTargetInfo target_info {
@@ -117,7 +115,7 @@ SDL_GPUGraphicsPipeline* Renderer::createGraphicsPipeline(SDL_GPUShader *vert_sh
 		.rasterizer_state = { SDL_GPU_FILLMODE_FILL },
 		.target_info = target_info,
 	};
-	SDL_GPUGraphicsPipeline *result = SDL_CreateGPUGraphicsPipeline(m_device, &pipeline_info);
+	SDL_GPUGraphicsPipeline *result = SDL_CreateGPUGraphicsPipeline(m_gpu, &pipeline_info);
 	if (result == nullptr) {
 		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 		return nullptr;
@@ -126,7 +124,7 @@ SDL_GPUGraphicsPipeline* Renderer::createGraphicsPipeline(SDL_GPUShader *vert_sh
 }
 
 void Renderer::draw(SDL_GPUGraphicsPipeline *pipeline) {
-	SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(m_device);
+	SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(m_gpu);
 	if (cmdbuf == nullptr) {
 		SDL_Log("AcquireGPUCommandBuffer failed%s", SDL_GetError());
 		return;
@@ -151,14 +149,15 @@ void Renderer::draw(SDL_GPUGraphicsPipeline *pipeline) {
 }
 
 void Renderer::releaseShader(SDL_GPUShader *shader) {
-	SDL_ReleaseGPUShader(m_device, shader);
+	SDL_ReleaseGPUShader(m_gpu, shader);
 }
 void Renderer::releaseGraphicsPipeline(SDL_GPUGraphicsPipeline *pipeline) {
-	SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
+	SDL_ReleaseGPUGraphicsPipeline(m_gpu, pipeline);
 }
 
 void Renderer::quit() {
-	SDL_ReleaseWindowFromGPUDevice(m_device, m_window);
+	SDL_ReleaseWindowFromGPUDevice(m_gpu, m_window);
 	SDL_DestroyWindow(m_window);
-	SDL_DestroyGPUDevice(m_device);
+	SDL_DestroyGPUDevice(m_gpu);
+	SDL_Quit();
 }
