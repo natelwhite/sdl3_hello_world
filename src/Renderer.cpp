@@ -147,7 +147,7 @@ SDL_GPUShader* Renderer::loadShaderBinary(const char *filename, SDL_ShaderCross_
 		entrypoint = "main";
 		break;
 	case SDL_GPU_SHADERFORMAT_DXBC:
-		SDL_snprintf(binary_path, sizeof(binary_path), "%sshaders/compiled/%s.dxil", m_root, filename);
+		SDL_snprintf(binary_path, sizeof(binary_path), "%sshaders/compiled/%s.dxbc", m_root, filename);
 		entrypoint = "main";
 		break;
 	case SDL_GPU_SHADERFORMAT_MSL:
