@@ -11,11 +11,11 @@ int main() {
 		.num_storage_buffers = 0,
 		.num_uniform_buffers = 0
 	};
-	SDL_GPUShader *vert_shader = renderer.loadShader("RawTriangle.vert", &metadata);
+	SDL_GPUShader *vert_shader = renderer.loadShaderSource("RawTriangle.vert", &metadata);
 	if (vert_shader == nullptr) {
 		return -1;
 	}
-	SDL_GPUShader *frag_shader = renderer.loadShader("SolidColor.frag", &metadata);
+	SDL_GPUShader *frag_shader = renderer.loadShaderSource("SolidColor.frag", &metadata);
 	if (frag_shader == nullptr) {
 		return -1;
 	}
@@ -43,9 +43,9 @@ int main() {
 				case SDLK_ESCAPE:
 					quit = true;
 					break;
-				case SDLK_R:
-					vert_shader = renderer.loadShader("RawTriangle.vert", &metadata);
-					frag_shader = renderer.loadShader("SolidColor.frag", &metadata);
+				case SDLK_R: {
+					vert_shader = renderer.loadShaderSource("RawTriangle.vert", &metadata);
+					frag_shader = renderer.loadShaderSource("SolidColor.frag", &metadata);
 					if (vert_shader == nullptr) {
 						SDL_Log("Could not reload vertex shader: %s", SDL_GetError());
 						continue;
@@ -65,6 +65,33 @@ int main() {
 					renderer.releaseGraphicsPipeline(pipeline);
 					pipeline = new_pipeline;
 					break;
+				}
+				case SDLK_C: {
+					renderer.compileShader("RawTriangle.vert");
+					renderer.compileShader("SolidColor.frag");
+					vert_shader = renderer.loadShaderBinary("RawTriangle.vert", &metadata);
+					frag_shader = renderer.loadShaderBinary("SolidColor.frag", &metadata);
+					if (vert_shader == nullptr) {
+						SDL_Log("Could not reload vertex shader: %s", SDL_GetError());
+						continue;
+					}
+					if (frag_shader == nullptr) {
+						SDL_Log("Could not reload fragment shader: %s", SDL_GetError());
+						continue;
+					}
+					SDL_GPUGraphicsPipeline *new_pipeline = renderer.createGraphicsPipeline(vert_shader, frag_shader);
+					if (new_pipeline == nullptr) {
+						SDL_Log("Could not create graphics pipeline: %s", SDL_GetError());
+						continue;
+					}
+
+					renderer.releaseShader(vert_shader);
+					renderer.releaseShader(frag_shader);
+					renderer.releaseGraphicsPipeline(pipeline);
+					pipeline = new_pipeline;
+					SDL_Log("Successfully compiled vertex and fragment shader");
+					break;
+				}
 				}
 			}
 		}

@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "SDL3/SDL_gpu.h"
 #include "SDL3_shadercross/SDL_shadercross.h"
 
 bool Renderer::init() { 
@@ -24,10 +25,169 @@ bool Renderer::init() {
 		return false;
 	}
 
+	// determine mutual shader format
+	SDL_GPUShaderFormat device_formats = SDL_GetGPUShaderFormats(m_gpu);
+	for (const SDL_GPUShaderFormat &format : m_accepted_shader_formats) {
+		if (device_formats & format) {
+			m_mutual_format = format;
+			break;
+		} 
+	}
+	switch(m_mutual_format) {
+	case SDL_GPU_SHADERFORMAT_SPIRV:
+		SDL_Log("Found mutual shader format: SPIRV");
+		break;
+	case SDL_GPU_SHADERFORMAT_DXIL:
+		SDL_Log("Found mutual shader format: DXIL");
+		break;
+	case SDL_GPU_SHADERFORMAT_DXBC:
+		SDL_Log("Found mutual shader format: DXBC");
+		break;
+	case SDL_GPU_SHADERFORMAT_MSL:
+		SDL_Log("Found mutual shader format: MSL");
+		break;
+	case SDL_GPU_SHADERFORMAT_METALLIB:
+		SDL_Log("Found mutual shader format: METALLIB");
+		break;
+	default:
+		SDL_Log("Could not find mutual shader format");
+		return false;
+		break;
+	}
 	return true;
 }
 
-SDL_GPUShader* Renderer::loadShader(const char* filename, SDL_ShaderCross_GraphicsShaderMetadata *metadata){
+bool Renderer::compileShader(const char *filename) {
+	// determine shader stage - (fragment / vertex)
+	SDL_ShaderCross_ShaderStage shader_stage;
+	if (SDL_strstr(filename, ".vert")) {
+		shader_stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX;
+	} else if (SDL_strstr(filename, ".frag")) {
+		shader_stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
+	} else {
+		SDL_Log("Invalid shader stage"); 
+		return false;
+	}
+
+	// get the full path to the shader given it's name
+	char full_path[256];
+	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.hlsl", m_root, m_hlsl, filename);
+
+
+	// get shader code
+	size_t source_size;
+	void *source = SDL_LoadFile(full_path, &source_size);
+	if (source == NULL) {
+		SDL_Log("Failed to load shader from disk: %s", full_path);
+		return false;
+	}
+
+	// create info & metadata
+	const SDL_ShaderCross_HLSL_Info hlsl_info {
+		.source = static_cast<const char*>(source),
+		.entrypoint = "main",
+		.include_dir = NULL,
+		.defines = NULL,
+		.shader_stage = shader_stage,
+		.enable_debug = true,
+		.name = NULL,
+		.props = 0
+	};
+
+	// change file ending & function call based on mutual_format
+	size_t binary_size;
+	void *binary;
+	char binary_path[256];
+	switch(m_mutual_format) {
+	case SDL_GPU_SHADERFORMAT_SPIRV:
+		binary = SDL_ShaderCross_CompileSPIRVFromHLSL(&hlsl_info, &binary_size);
+		SDL_snprintf(binary_path, sizeof(binary_path), "%s%s%s.spv", m_root, m_binaries, filename);
+		break;
+	case SDL_GPU_SHADERFORMAT_DXIL:
+		binary = SDL_ShaderCross_CompileDXILFromHLSL(&hlsl_info, &binary_size);
+		SDL_snprintf(binary_path, sizeof(binary_path), "%s%s%s.dxil", m_root, m_binaries, filename);
+		break;
+	case SDL_GPU_SHADERFORMAT_DXBC:
+		binary = SDL_ShaderCross_CompileDXBCFromHLSL(&hlsl_info, &binary_size);
+		SDL_snprintf(binary_path, sizeof(binary_path), "%s%s%s.dxbc", m_root, m_binaries, filename);
+		break;
+	}
+	SDL_free(source);
+	if (!SDL_SaveFile(binary_path, binary, binary_size)) {
+		SDL_Log("Could not save file: %s", SDL_GetError());
+		SDL_free(binary);
+		return false;
+	}
+	SDL_free(binary);
+	return true;
+}
+
+SDL_GPUShader* Renderer::loadShaderBinary(const char *filename, SDL_ShaderCross_GraphicsShaderMetadata *metadata) {
+	// determine shader stage
+	SDL_GPUShaderStage stage;
+	if (SDL_strstr(filename, ".vert")) {
+		stage = SDL_GPU_SHADERSTAGE_VERTEX;
+	} else if (SDL_strstr(filename, ".frag")) {
+		stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+	} else {
+		SDL_Log("Invalid shader stage!");
+		return nullptr;
+	}
+
+	// determine full_path & entrypoint based on m_mutual_format
+	char binary_path[256];
+	const char *entrypoint;
+	switch(m_mutual_format) {
+	case SDL_GPU_SHADERFORMAT_SPIRV:
+		SDL_snprintf(binary_path, sizeof(binary_path), "%sshaders/compiled/%s.spv", m_root, filename);
+		entrypoint = "main";
+		break;
+	case SDL_GPU_SHADERFORMAT_DXIL:
+		SDL_snprintf(binary_path, sizeof(binary_path), "%sshaders/compiled/%s.dxil", m_root, filename);
+		entrypoint = "main";
+		break;
+	case SDL_GPU_SHADERFORMAT_DXBC:
+		SDL_snprintf(binary_path, sizeof(binary_path), "%sshaders/compiled/%s.dxil", m_root, filename);
+		entrypoint = "main";
+		break;
+	case SDL_GPU_SHADERFORMAT_MSL:
+		SDL_snprintf(binary_path, sizeof(binary_path), "%sshaders/compiled/%s.msl", m_root, filename);
+		entrypoint = "main0";
+		break;
+	default: // if SDL_GPU_SHADERFORMAT_INVALID
+		SDL_Log("Unrecognized GPUDevice shader format");
+		return nullptr;
+		break;
+	}
+
+	size_t binary_size;
+	void *binary = SDL_LoadFile(binary_path, &binary_size);
+	if (binary == nullptr) {
+		SDL_Log("Failed to load shader from disk: %s", SDL_GetError());
+		return nullptr;
+	}
+
+	SDL_GPUShaderCreateInfo create_info {
+		.code_size = binary_size,
+		.code = static_cast<const Uint8*>(binary),
+		.entrypoint = entrypoint,
+		.format = m_mutual_format,
+		.stage = stage,
+		.num_samplers = metadata->num_samplers,
+		.num_storage_textures = metadata->num_storage_textures,
+		.num_storage_buffers = metadata->num_storage_buffers,
+		.num_uniform_buffers = metadata->num_uniform_buffers
+	};
+	SDL_GPUShader *result = SDL_CreateGPUShader(m_gpu, &create_info);
+	if (result == nullptr) {
+		SDL_Log("Failed to load shader: %s", SDL_GetError());
+		return nullptr;
+	}
+	SDL_free(binary);
+	return result;
+}
+
+SDL_GPUShader* Renderer::loadShaderSource(const char* filename, SDL_ShaderCross_GraphicsShaderMetadata *metadata){
 	// determine if vertex or fragment shader
 	SDL_ShaderCross_ShaderStage shader_stage;
 	if (SDL_strstr(filename, ".vert")) {
@@ -40,27 +200,14 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, SDL_ShaderCross_Graphi
 	}
 
 	// get the full path to the shader given it's name
-	char full_path[256];
-	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s.hlsl", m_root, m_hlsl, filename);
-	// force vulkan format for now
-	SDL_GPUShaderFormat device_formats = SDL_GetGPUShaderFormats(m_gpu);
-	SDL_GPUShaderFormat mutual_format = SDL_GPU_SHADERFORMAT_INVALID;
-	for (const SDL_GPUShaderFormat &format : m_accepted_shader_formats) {
-		if (device_formats & format) {
-			mutual_format = format;
-			break;
-		} 
-	}
-	if (mutual_format == SDL_GPU_SHADERFORMAT_INVALID) {
-		SDL_Log("Unrecognized GPUDevice shader format");
-		return nullptr;
-	}
+	char source_path[256];
+	SDL_snprintf(source_path, sizeof(source_path), "%s%s%s.hlsl", m_root, m_hlsl, filename);
 
 	// get shader code
 	size_t code_size;
-	void *code = SDL_LoadFile(full_path, &code_size);
+	void *code = SDL_LoadFile(source_path, &code_size);
 	if (code == NULL) {
-		SDL_Log("Failed to load shader from disk: %s", full_path);
+		SDL_Log("Failed to load shader from disk: %s", source_path);
 		return nullptr;
 	}
 
@@ -76,7 +223,7 @@ SDL_GPUShader* Renderer::loadShader(const char* filename, SDL_ShaderCross_Graphi
 		.props = 0
 	};
 
-	// compile hlsl to spv
+	// compile hlsl to binary shader format
 	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(m_gpu, &hlsl_info, metadata);
 	SDL_free(code);
 	if (result == nullptr) {
