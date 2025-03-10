@@ -1,4 +1,4 @@
-build
 .cache
-bin/*
-!bin/shaders/source/
+build/*
+!build/shaders
+build/shaders/compiled
